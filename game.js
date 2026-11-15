@@ -9,7 +9,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 // ---------- Configurações (ajuste aqui) ----------
 const CFG = {
   modelo: 'models/skatista.glb',
-  sons: { pulo: 'sounds/pulo.mp3', aterrissar: 'sounds/aterrissar.mp3', musica: 'sounds/musica.mp3' },
+  sons: { pulo: 'sounds/pulo.mp3', aterrissar: 'sounds/aterrissar.mp3', musica: ['sounds/trilha.mp3', 'sounds/musica.mp3'] },
   alturaPersonagem: 1.8, rotacaoModelo: 0,
   vMax: 20, velInicial: 2.5, tempoDobrar: 0.5,  // andando, a velocidade dobra a cada 0,5 s (até vMax)
   freio: 14, giroRumo: 2.4,
@@ -32,13 +32,16 @@ const MANOBRAS = {
 };
 
 // ---------- Áudio (arquivo ausente = silêncio) ----------
-function criarSom(url, { loop = false, volume = 1 } = {}) {
+function criarSom(urls, { loop = false, volume = 1 } = {}) {
+  urls = [].concat(urls); let n = 0;      // aceita um arquivo ou uma lista de alternativas
   const a = new Audio(); a.loop = loop; a.volume = volume; let ok = true;
   a.addEventListener('error', () => {
-    ok = false; console.warn(`[som] "${url}" indisponível: silêncio.`);
-    const av = document.getElementById('aviso'); if (av) av.textContent += `Som não carregou (arquivo ausente ou formato inválido): ${url}. `; // aviso na tela
+    console.warn(`[som] "${urls[n]}" indisponível.`);
+    if (++n < urls.length) { a.src = urls[n]; return; } // tenta o próximo arquivo da lista
+    ok = false;
+    const av = document.getElementById('aviso'); if (av) av.textContent += `Som não carregou (arquivo ausente ou formato inválido): ${urls.join(' ou ')}. `;
   });
-  a.src = url;
+  a.src = urls[0];
   return {
     volume(v) { a.volume = v; },
     tocar() { if (!ok) return; try { a.currentTime = 0; a.play()?.catch(() => {}); } catch (_) {} },
