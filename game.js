@@ -34,7 +34,10 @@ const MANOBRAS = {
 // ---------- Áudio (arquivo ausente = silêncio) ----------
 function criarSom(url, { loop = false, volume = 1 } = {}) {
   const a = new Audio(); a.loop = loop; a.volume = volume; let ok = true;
-  a.addEventListener('error', () => { ok = false; console.warn(`[som] "${url}" indisponível: silêncio.`); });
+  a.addEventListener('error', () => {
+    ok = false; console.warn(`[som] "${url}" indisponível: silêncio.`);
+    const av = document.getElementById('aviso'); if (av) av.textContent += `Som não carregou (arquivo ausente ou formato inválido): ${url}. `; // aviso na tela
+  });
   a.src = url;
   return {
     volume(v) { a.volume = v; },
