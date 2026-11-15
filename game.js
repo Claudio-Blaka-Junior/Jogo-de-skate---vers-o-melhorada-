@@ -137,7 +137,7 @@ const visual = new THREE.Group();    // contém o modelo; pode ser escalado (cub
 jogador.add(visual);
 scene.add(jogador);
 
-let usandoCubo = false;   // true quando o modelo não foi carregado
+let animacaoProcedural = false; // true se não há animações no GLB (ou se usa o cubo): agacha/estica por escala
 let mixer = null;         // AnimationMixer (só existe com GLB que tenha animações)
 const acoes = {};         // { parado, agachar, pulo, aterrissar } -> AnimationAction
 let acaoAtual = null;
@@ -148,7 +148,7 @@ function avisar(texto) { avisoEl.textContent = texto; }
 
 // Cubo reserva (usado se models/skatista.glb não existir)
 function usarCubo() {
-  usandoCubo = true;
+  animacaoProcedural = true;
   const cubo = new THREE.Mesh(
     new THREE.BoxGeometry(0.8, 1.6, 0.8),
     new THREE.MeshStandardMaterial({ color: 0xff3d7f })
@@ -187,7 +187,10 @@ async function carregarModelo() {
     // Mostra no console o nome de todas as animações do GLB
     const clipes = gltf.animations;
     console.log('Animações no GLB:', clipes.map((c) => c.name));
-    if (clipes.length === 0) console.warn('O GLB não tem animações.');
+    if (clipes.length === 0) {
+      console.warn('O GLB não tem animações: usando efeito procedural (agachar/esticar).');
+      animacaoProcedural = true;
+    }
 
     modelo.traverse((o) => {
       if (o.isMesh) {
@@ -396,10 +399,17 @@ function atualizar(dt) {
       break;
   }
 
-  // Cubo reserva: "amassa" ao agachar para dar feedback visual
-  if (usandoCubo) {
-    const alvo = estado === 'agachando' || estado === 'aterrissando' ? 0.7 : 1;
-    visual.scale.y += (alvo - visual.scale.y) * Math.min(1, 20 * dt);
+  // Sem animações no GLB (ou com o cubo): simula agachar, esticar no ar e amassar ao aterrissar.
+  // A escala é aplicada no grupo "visual", cuja origem fica nos pés do personagem.
+  if (animacaoProcedural) {
+    let alvoY = 1, alvoXZ = 1;
+    if (estado === 'agachando')    { alvoY = 0.75; alvoXZ = 1.1; }
+    if (estado === 'no_ar')        { alvoY = 1.08; alvoXZ = 0.95; }
+    if (estado === 'aterrissando') { alvoY = 0.82; alvoXZ = 1.08; }
+    const k = Math.min(1, 20 * dt);
+    visual.scale.y += (alvoY - visual.scale.y) * k;
+    visual.scale.x += (alvoXZ - visual.scale.x) * k;
+    visual.scale.z = visual.scale.x;
   }
 }
 
