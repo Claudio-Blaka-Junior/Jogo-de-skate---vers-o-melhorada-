@@ -10,7 +10,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 // 1) CONFIGURAÇÕES (ajuste aqui sem mexer no resto do código)
 // ---------------------------------------------------------------------
 const CFG = {
-  modelo: 'models/skatista.glb',
+  modelo: 'modelos/skatista.glb',
   sons: {
     pulo: 'sounds/pulo.mp3',
     aterrissar: 'sounds/aterrissar.mp3',
@@ -146,7 +146,7 @@ let duracaoAterrissar = CFG.tempoAterrissarPadrao;
 const avisoEl = document.getElementById('aviso');
 function avisar(texto) { avisoEl.textContent = texto; }
 
-// Cubo reserva (usado se models/skatista.glb não existir)
+// Cubo reserva (usado se modelos/skatista.glb não existir)
 function usarCubo() {
   animacaoProcedural = true;
   const cubo = new THREE.Mesh(
