@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skate 3D</title>
+
+  <style>
+    /* Tela cheia, sem barras de rolagem */
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1033; }
+    canvas { display: block; }
+
+    /* Tela inicial: o clique do jogador libera o áudio do navegador */
+    #inicio {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      background: rgba(27, 16, 51, 0.88);
+      color: #fff; font-family: system-ui, "Segoe UI", sans-serif;
+      cursor: pointer; user-select: none; text-align: center;
+    }
+    #inicio h1 { margin: 0; font-size: clamp(2rem, 7vw, 4rem); letter-spacing: 0.02em; }
+    #inicio p  { margin: 0; font-size: 1.1rem; opacity: 0.85; }
+    #inicio .botao {
+      margin-top: 8px; padding: 14px 32px; border-radius: 999px;
+      background: #ff3d7f; font-weight: 700; font-size: 1.2rem;
+    }
+    #inicio:focus-visible .botao { outline: 3px solid #fff; outline-offset: 3px; }
+
+    /* Ajuda de controles e avisos (canto da tela) */
+    #hud {
+      position: fixed; left: 12px; bottom: 12px; z-index: 5;
+      color: #fff; font: 14px/1.4 system-ui, "Segoe UI", sans-serif;
+      background: rgba(27, 16, 51, 0.6); padding: 8px 12px; border-radius: 8px;
+      pointer-events: none;
+    }
+    #aviso { color: #ffd166; margin-top: 4px; }
+  </style>
+
+  <!-- Importmap: define de onde vêm "three" e os addons, com versão FIXA (0.160.0) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Tela "Clique para começar" -->
+  <div id="inicio" tabindex="0" role="button" aria-label="Clique para começar">
+    <h1>Skate 3D</h1>
+    <p>WASD ou setas para andar &middot; Espaço para pular</p>
+    <div class="botao">Clique para começar</div>
+  </div>
+
+  <!-- Ajuda de controles e mensagens sobre arquivos ausentes -->
+  <div id="hud">
+    WASD / setas: mover &nbsp;|&nbsp; Espaço: pular
+    <div id="aviso"></div>
+  </div>
+
+  <!-- Script principal (módulo ES) -->
+  <script type="module" src="game.js"></script>
+</body>
+</html>
