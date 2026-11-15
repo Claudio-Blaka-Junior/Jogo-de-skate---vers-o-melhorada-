@@ -15,9 +15,12 @@ const CFG = {
   freio: 14, giroRumo: 2.4,
   gravInclinacao: 14,    // descidas aceleram e subidas freiam (impulso nas descidas dos extremos)
   gravidade: 20, impulsoPulo: 8 * Math.sqrt(1.25), tempoAgachar: 0.2, // pulo 25% mais alto
+  gravidadeRampa: 15,    // gravidade mais suave depois de sair de uma rampa (mais tempo no ar)
+  vyMinRampa: 8, vyMaxRampa: 13, // impulso vertical ao sair da rampa (garante tempo para 3 manobras)
+  multAereo: 5,          // manobras em sequência no ar: raio na tela e pontos do combo x5
   giroAr: 7,             // rad/s de giro no ar (A/D)
   tempoCombo: 0.7,       // tempo no chão depois de aterrissar até o combo ser fechado e somado
-  tempoMult: 5,          // 5 s sem manobra: o multiplicador volta a 1
+  tempoMult: 10,         // 10 s sem manobra: o multiplicador volta a 1
   combosPorNivel: 5,     // a cada 5 combos seguidos, fogo e raios do painel sobem de nível
   tolPouso: 0.6,         // quanto MENOR, mais fácil de cair (0.5 era a regra anterior)
   tempoJogo: 60,         // duração da partida (segundos)
@@ -26,9 +29,9 @@ const CFG = {
   limite: 88,
 };
 const MANOBRAS = {
-  KeyJ: { nome: 'Mortal para trás', pts: 250, eixo: 'x', dur: 0.6 },
-  KeyK: { nome: 'Kickflip', pts: 150, eixo: 'z', sinal: 1, dur: 0.4 },
-  KeyL: { nome: 'Pop Shove-it', pts: 100, eixo: 'y', dur: 0.4 },
+  KeyJ: { nome: 'Mortal para trás', pts: 250, eixo: 'x', dur: 0.5 },
+  KeyK: { nome: 'Kickflip', pts: 150, eixo: 'z', sinal: 1, dur: 0.35 },
+  KeyL: { nome: 'Pop Shove-it', pts: 100, eixo: 'y', dur: 0.35 },
 };
 
 // ---------- Áudio (arquivo ausente = silêncio) ----------
@@ -174,7 +177,7 @@ function criarCorrimao(ax, az, bx, bz) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, r.y, 0.08), matMetal); p.position.set(ax + r.dx * t, r.y / 2, az + r.dz * t); scene.add(p);
   }
 }
-criarCorrimao(0, 14, 0, -22); // único corrimão: logo depois da 1ª rampa, para cair nele ao sair dela
+criarCorrimao(0, 14, 0, -28); // único corrimão: logo depois da 1ª rampa, para cair nele ao sair dela
 
 // ---------- Jogador: corpo > (skate + personagem) ----------
 const jogador = new THREE.Group(), corpo = new THREE.Group(), visual = new THREE.Group(), skate = new THREE.Group(), salto = new THREE.Group();
@@ -256,7 +259,7 @@ function msg(t, ms = 1300) { elMsg.textContent = t; clearTimeout(msgT); msgT = s
 let estado = 'chao';           // chao | agachando | ar | grind | queda
 let tEst = 0, tAterr = 0, rumo = Math.PI, vel = 0, vy = 0, vyChao = 0;
 const vh = new THREE.Vector2(); // velocidade horizontal no ar (x, z)
-let trick = null, fila = null, voltas = 0, giroAcum = 0, comboT = 0, gT = 0, gCD = 0;
+let trick = null, fila = [], manobrasNoAr = 0, gravAtual = CFG.gravidade, voltas = 0, giroAcum = 0, comboT = 0, gT = 0, gCD = 0;
 let rail = null, railT = 0, railSinal = 1, railVel = 0, railYaw = 0, railLado = false;
 let total = 0, pontosCombo = 0, mult = 1, tempo = CFG.tempoJogo, fim = false;
 let tMult = 0, nCombos = 0, ultTotal = '', ultCombo = '', ultSeq = '';
@@ -274,15 +277,30 @@ function atividade() { tMult = CFG.tempoMult; }                    // fez manobr
 function zerarMult() { mult = 1; nCombos = 0; }
 function pulsar(el) { el.classList.remove('pulso'); void el.offsetWidth; el.classList.add('pulso'); }
 function explodir() { elPainel.classList.remove('burst'); void elPainel.offsetWidth; elPainel.classList.add('burst'); msg(`${nCombos} COMBOS!`, 1400); }
+function entrarNoAr(grav) { manobrasNoAr = 0; voltas = 0; giroAcum = 0; gravAtual = grav; }
+// Raio forte na tela (clarão, três raios sorteados e tremor da imagem)
+const elRaio = document.getElementById('raioTela'), elRaioSvg = elRaio.querySelector('svg');
+function raioForte() {
+  let h = '';
+  for (let b = 0; b < 3; b++) {
+    let x = 15 + Math.random() * 70, pts = '';
+    for (let y = 0; y <= 100; y += 10) { pts += `${x.toFixed(1)},${y} `; x += (Math.random() - 0.5) * 18; }
+    h += `<polyline points="${pts}"/>`;
+  }
+  elRaioSvg.innerHTML = h;
+  for (const [el, cls] of [[elRaio, 'ativo'], [renderer.domElement, 'tremor']]) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+}
 function terminarManobra(prox = false) { // soma os pontos e devolve skate e corpo à posição normal
   if (!trick) return;
-  atividade(); pontosCombo += trick.def.pts; msg(`${trick.def.nome}! +${trick.def.pts}`);
+  atividade(); pontosCombo += trick.def.pts; manobrasNoAr++;
+  if (manobrasNoAr >= 2) { // 2ª manobra em diante no mesmo salto: combo aéreo
+    pontosCombo *= CFG.multAereo; raioForte(); msg(`${trick.def.nome}! COMBO NO AR x${CFG.multAereo}`, 1300);
+  } else msg(`${trick.def.nome}! +${trick.def.pts}`);
   skate.rotation.set(0, 0, 0); salto.rotation.x = 0; trick = null;
-  if (prox && fila) trick = { def: MANOBRAS[fila], t: 0 }; // manobra "na fila" começa logo em seguida
-  fila = null;
+  if (prox && fila.length) trick = { def: MANOBRAS[fila.shift()], t: 0 }; else fila = []; // manobras na fila começam em seguida
 }
 function cair(motivo) { // queda: perde combo e multiplicador
-  trick = null; fila = null; salto.rotation.x = 0; somAterrissar.tocar();
+  trick = null; fila = []; salto.rotation.x = 0; somAterrissar.tocar();
   pontosCombo = 0; zerarMult(); comboT = 0; vel = 0; vh.set(0, 0); vy = 0; rail = null;
   visual.rotation.x = -1.3; visual.position.y = 0.4; skate.rotation.set(0.4, 0.8, 1.2);
   tEst = 1.1; setEstado('queda');
@@ -313,14 +331,14 @@ function sairGrind(pulo) {
   vh.set(rail.dx * railSinal * railVel, rail.dz * railSinal * railVel); vy = pulo ? CFG.impulsoPulo * 0.8 : 3;
   if (pulo) somPulo.tocar();
   jogador.rotation.y = rumo; // volta a olhar para a frente antes de aterrissar
-  rail = null; gCD = 0.4; voltas = 0; giroAcum = 0; setEstado('ar');
+  rail = null; gCD = 0.4; entrarNoAr(CFG.gravidade); setEstado('ar');
 }
 function encerrar() { // fim dos 60 s: soma o combo pendente e mostra a pontuação final
-  fim = true; total += pontosCombo * mult; pontosCombo = 0; trick = null; fila = null;
+  fim = true; total += pontosCombo * mult; pontosCombo = 0; trick = null; fila = [];
   document.getElementById('final').textContent = Math.floor(total).toLocaleString('pt-BR'); elFim.style.display = 'flex';
 }
 function reiniciar() {
-  total = 0; pontosCombo = 0; mult = 1; nCombos = 0; tMult = 0; comboT = 0; tempo = CFG.tempoJogo; fim = false; trick = null; fila = null; rail = null;
+  total = 0; pontosCombo = 0; mult = 1; nCombos = 0; tMult = 0; comboT = 0; tempo = CFG.tempoJogo; fim = false; trick = null; fila = []; rail = null;
   vel = 0; vy = 0; vyChao = 0; vh.set(0, 0); rumo = Math.PI; tAterr = 0;
   jogador.rotation.y = Math.PI; corpo.rotation.x = 0; salto.rotation.x = 0; visual.rotation.x = 0; visual.position.y = 0.16; skate.rotation.set(0, 0, 0);
   pos.set(0, terreno(0, 80), 80); // começa no alto da descida
@@ -335,7 +353,7 @@ function atualizar(dt) {
   const dirX = on ? (k('KeyA', 'ArrowLeft') ? 1 : k('KeyD', 'ArrowRight') ? -1 : 0) : 0; // esquerda = +1
   const pulo = on && pedPulo, manobra = on ? pedManobra : null; pedPulo = false; pedManobra = null;
   gCD -= dt; tMult = Math.max(0, tMult - dt);
-  if (tMult === 0 && mult > 1) zerarMult();       // 5 s sem manobra: multiplicador volta a 1
+  if (tMult === 0 && mult > 1) zerarMult();       // 10 s sem manobra: multiplicador volta a 1
 
   if (estado === 'chao' || estado === 'agachando') {
     rumo += dirX * CFG.giroRumo * Math.min(1, Math.abs(vel) / 3 + 0.3) / (1 + Math.max(0, vel) / 25) * dt;
@@ -349,11 +367,11 @@ function atualizar(dt) {
     const bateu = nx !== rx || nz !== rz || CORRIMAOS.some((r) => pos.y < r.y - 0.2 && distCorrimao(r, nx, nz) < 0.4);
     if (g - pos.y > 0.5 || bateu) vel = 0;                            // bateu (rampa, corrimão ou borda): velocidade zera
     else if (pos.y - g > 0.5) {                                       // saiu do topo da rampa: decola
-      pos.x = nx; pos.z = nz; vy = Math.min(12, Math.max(0, vyChao * 1.25)); vh.set(fx * vel, fz * vel); giroAcum = 0; voltas = 0; setEstado('ar');
+      pos.x = nx; pos.z = nz; vy = Math.min(CFG.vyMaxRampa, Math.max(vel > 3 ? CFG.vyMinRampa : 0, vyChao * 1.25)); vh.set(fx * vel, fz * vel); entrarNoAr(CFG.gravidadeRampa); setEstado('ar');
     } else { vyChao = (g - pos.y) / dt; pos.set(nx, g, nz); }
     if (pulo && estado === 'chao') { tEst = CFG.tempoAgachar; setEstado('agachando'); }
     if (estado === 'agachando' && (tEst -= dt) <= 0) {                // impulso do pulo
-      vy = CFG.impulsoPulo + Math.min(8, Math.max(0, vyChao)); vh.set(fx * vel, fz * vel); giroAcum = 0; voltas = 0; somPulo.tocar(); setEstado('ar');
+      vy = CFG.impulsoPulo + Math.min(8, Math.max(0, vyChao)); vh.set(fx * vel, fz * vel); entrarNoAr(CFG.gravidade); somPulo.tocar(); setEstado('ar');
     }
     const p = Math.atan2(alturaEm(pos.x + fx * 0.6, pos.z + fz * 0.6) - alturaEm(pos.x - fx * 0.6, pos.z - fz * 0.6), 1.2);
     corpo.rotation.x += (-p - corpo.rotation.x) * Math.min(1, 12 * dt);  // inclina junto com a rampa
@@ -363,7 +381,7 @@ function atualizar(dt) {
       mult = Math.min(mult * 2, 1024); pontosCombo = 0; nCombos++; if (nCombos % CFG.combosPorNivel === 0) explodir();
     }
   } else if (estado === 'ar') {
-    vy -= CFG.gravidade * dt;
+    vy -= gravAtual * dt;
     if (dirX) { // giro aéreo: 50 pontos por meia-volta (180°); cada meia-volta vale mais que a anterior
       const d = dirX * CFG.giroAr * dt; jogador.rotation.y += d; giroAcum += Math.abs(d);
       while (giroAcum >= Math.PI) { giroAcum -= Math.PI; voltas++; pontosCombo += 50 * voltas; atividade(); msg(`Giro ${voltas * 180}°  +${50 * voltas}`, 800); }
@@ -372,7 +390,7 @@ function atualizar(dt) {
     if (CORRIMAOS.some((r) => pos.y < r.y - 0.2 && distCorrimao(r, nx, nz) < 0.4)) { nx = pos.x; nz = pos.z; vh.set(0, 0); } // não atravessa o corrimão
     pos.x = nx; pos.z = nz; pos.y += vy * dt;
     corpo.rotation.x += (0 - corpo.rotation.x) * Math.min(1, 8 * dt);
-    if (manobra) { if (!trick) { trick = { def: MANOBRAS[manobra], t: 0 }; atividade(); } else fila = manobra; } // várias manobras no ar (fila de 1)
+    if (manobra) { if (!trick) { trick = { def: MANOBRAS[manobra], t: 0 }; atividade(); } else if (fila.length < 2) fila.push(manobra); } // várias manobras no ar (fila de 1)
     if (trick) {
       const d = trick.def; trick.t += dt / d.dur; const e = 1 - Math.pow(1 - Math.min(trick.t, 1), 2);
       if (d.eixo === 'x') salto.rotation.x = -2 * Math.PI * e;                       // mortal para trás
@@ -423,7 +441,7 @@ function atualizar(dt) {
   const q = nCombos > 0 ? `${nCombos} ${nCombos === 1 ? 'combo seguido' : 'combos seguidos'}` : '';
   if (q !== ultSeq) { ultSeq = q; elSeq.textContent = q; }
   elPainel.dataset.n = Math.min(3, Math.floor(nCombos / CFG.combosPorNivel)); // 0 normal, 1 fogo, 2 fogo + raios, 3 tudo mais forte
-  const f = tMult / CFG.tempoMult;                                              // termômetro dos 5 s (sem números)
+  const f = tMult / CFG.tempoMult;                                              // termômetro dos 10 s (sem números)
   elTermo.style.opacity = mult > 1 ? 1 : 0; elTermo.classList.toggle('alerta', mult > 1 && f < 0.33);
   elTermoFill.style.height = `${f * 100}%`; elTermoFill.style.background = `hsl(${Math.round(120 * f)} 90% 50%)`;
   elTempo.textContent = `${Math.ceil(tempo)}s`; elTempo.style.color = tempo <= 10 ? '#ff3d7f' : '#fff';
