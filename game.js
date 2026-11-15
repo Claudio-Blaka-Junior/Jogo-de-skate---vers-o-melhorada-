@@ -3,12 +3,14 @@
 // =====================================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 // ---------------------------------------------------------------------
 // 1) CONFIGURAÇÕES (ajuste aqui sem mexer no resto do código)
 // ---------------------------------------------------------------------
 const CFG = {
-  modelo: 'modelos/skatista.glb',
+  modelo: 'models/skatista.glb',
   sons: {
     pulo: 'sounds/pulo.mp3',
     aterrissar: 'sounds/aterrissar.mp3',
@@ -172,7 +174,14 @@ function acharClipe(clipes, apelidos, usados) {
 
 async function carregarModelo() {
   try {
-    const gltf = await new GLTFLoader().loadAsync(CFG.modelo);
+    // Loader com suporte a GLB comprimido (Draco e Meshopt), comum em exportações
+    const loader = new GLTFLoader();
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
+    loader.setDRACOLoader(draco);
+    loader.setMeshoptDecoder(MeshoptDecoder);
+
+    const gltf = await loader.loadAsync(CFG.modelo);
     const modelo = gltf.scene;
 
     // Mostra no console o nome de todas as animações do GLB
@@ -180,15 +189,30 @@ async function carregarModelo() {
     console.log('Animações no GLB:', clipes.map((c) => c.name));
     if (clipes.length === 0) console.warn('O GLB não tem animações.');
 
-    modelo.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    modelo.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.frustumCulled = false; // evita o modelo "sumir" por caixa de colisão errada
+      }
+    });
 
     // Normaliza o tamanho e coloca os pés em y = 0, centrado em x/z
-    const caixa = new THREE.Box3().setFromObject(modelo);
+    // (o 2º parâmetro "true" mede a malha com precisão, útil para modelos com esqueleto)
+    modelo.updateMatrixWorld(true);
+    const caixa = new THREE.Box3().setFromObject(modelo, true);
     const tamanho = caixa.getSize(new THREE.Vector3());
+    console.log('Tamanho original do modelo (x, y, z):', tamanho.x, tamanho.y, tamanho.z);
+    if (!isFinite(tamanho.y) || tamanho.y <= 0) {
+      console.warn('Tamanho do modelo inválido: ele pode estar vazio ou invisível.');
+      avisar('Modelo carregou, mas o tamanho é inválido (veja o console).');
+    }
     modelo.scale.setScalar(CFG.alturaPersonagem / (tamanho.y || 1));
-    const caixa2 = new THREE.Box3().setFromObject(modelo);
+    modelo.updateMatrixWorld(true);
+    const caixa2 = new THREE.Box3().setFromObject(modelo, true);
     const centro = caixa2.getCenter(new THREE.Vector3());
     modelo.position.set(-centro.x, -caixa2.min.y, -centro.z);
+    console.log('Modelo carregado. Malhas encontradas:',
+      (() => { let n = 0; modelo.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) n++; }); return n; })());
 
     // Gira o modelo dentro do grupo, se necessário
     visual.rotation.y = CFG.rotacaoModelo;
@@ -227,7 +251,9 @@ async function carregarModelo() {
     }
   } catch (erro) {
     console.warn(`[modelo] não foi possível carregar "${CFG.modelo}" — usando um cubo.`, erro);
-    avisar('Modelo não encontrado: usando um cubo.');
+    // Mostra o motivo real na tela, sem precisar abrir o console
+    const motivo = (erro && (erro.message || String(erro))) || 'erro desconhecido';
+    avisar(`Falha ao carregar o modelo (usando cubo): ${motivo}`.slice(0, 220));
     usarCubo();
   }
 }
