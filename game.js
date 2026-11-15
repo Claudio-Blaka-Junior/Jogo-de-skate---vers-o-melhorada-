@@ -10,7 +10,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 // 1) CONFIGURAÇÕES (ajuste aqui sem mexer no resto do código)
 // ---------------------------------------------------------------------
 const CFG = {
-  modelo: 'modelos/skatista.glb',
+  modelo: 'models/skatista.glb',
   sons: {
     pulo: 'sounds/pulo.mp3',
     aterrissar: 'sounds/aterrissar.mp3',
@@ -146,7 +146,7 @@ let duracaoAterrissar = CFG.tempoAterrissarPadrao;
 const avisoEl = document.getElementById('aviso');
 function avisar(texto) { avisoEl.textContent = texto; }
 
-// Cubo reserva (usado se modelos/skatista.glb não existir)
+// Cubo reserva (usado se models/skatista.glb não existir)
 function usarCubo() {
   animacaoProcedural = true;
   const cubo = new THREE.Mesh(
@@ -200,7 +200,7 @@ async function carregarModelo() {
     });
 
     // Normaliza o tamanho e coloca os pés em y = 0, centrado em x/z
-    // (o 2º parâmetro "true" mede a malha com precisão, útil para modelos com esqueleto)
+    // (o 2º parâmetro "true" mede a malha com precisão, útil para models com esqueleto)
     modelo.updateMatrixWorld(true);
     const caixa = new THREE.Box3().setFromObject(modelo, true);
     const tamanho = caixa.getSize(new THREE.Vector3());
