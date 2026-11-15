@@ -17,7 +17,7 @@ const CFG = {
   gravidade: 20, impulsoPulo: 8 * Math.sqrt(1.25), tempoAgachar: 0.2, // pulo 25% mais alto
   giroAr: 7,             // rad/s de giro no ar (A/D)
   tempoCombo: 0.7,       // tempo no chão depois de aterrissar até o combo ser fechado e somado
-  tempoMult: 3,          // 3 s sem manobra: o multiplicador volta a 1
+  tempoMult: 5,          // 5 s sem manobra: o multiplicador volta a 1
   combosPorNivel: 5,     // a cada 5 combos seguidos, fogo e raios do painel sobem de nível
   tolPouso: 0.6,         // quanto MENOR, mais fácil de cair (0.5 era a regra anterior)
   tempoJogo: 60,         // duração da partida (segundos)
@@ -138,11 +138,12 @@ for (let i = 0; i < 18; i++) { const a = rnd() * Math.PI * 2, r = 135 + rnd() * 
 // ---------- Rampas (cunhas) e corrimãos ----------
 // Cada rampa sobe na direção +z local; "rot" gira a rampa no eixo Y.
 const RAMPAS = [
-  { x: 8, z: -20, w: 6, l: 5, h: 2.2, rot: Math.PI },
-  { x: -18, z: -6, w: 5, l: 4.5, h: 1.8, rot: -Math.PI / 2 },
-  { x: 18, z: -6, w: 5, l: 4.5, h: 1.8, rot: Math.PI / 2 },
-  { x: -8, z: 24, w: 6, l: 5, h: 2.2, rot: 0 },
-  { x: -24, z: 18, w: 4, l: 4, h: 1.5, rot: Math.PI / 4 },
+  { x: 0, z: 26, w: 6, l: 5, h: 2.2, rot: Math.PI },       // 1ª rampa, de frente para quem desce a grande descida
+  { x: 0, z: -34, w: 6, l: 5, h: 2.2, rot: Math.PI },      // 2ª rampa na mesma linha, depois do corrimão
+  { x: 16, z: -26, w: 6, l: 5, h: 2.2, rot: 0 },           // rampas para a volta (sentido contrário)
+  { x: -16, z: -26, w: 6, l: 5, h: 2.2, rot: 0 },
+  { x: -26, z: 0, w: 5, l: 4.5, h: 1.8, rot: Math.PI / 2 }, // laterais, longe das linhas principais
+  { x: 26, z: 0, w: 5, l: 4.5, h: 1.8, rot: -Math.PI / 2 },
 ];
 const matRampa = new THREE.MeshStandardMaterial({ color: 0xb7bcc6, side: THREE.DoubleSide });
 RAMPAS.forEach((r) => {
@@ -173,7 +174,7 @@ function criarCorrimao(ax, az, bx, bz) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, r.y, 0.08), matMetal); p.position.set(ax + r.dx * t, r.y / 2, az + r.dz * t); scene.add(p);
   }
 }
-criarCorrimao(-9, -2, -9, -16); criarCorrimao(9, -2, 9, -16); criarCorrimao(-12, 8, 12, 8); criarCorrimao(22, 10, 22, 30);
+criarCorrimao(0, 14, 0, -22); // único corrimão: logo depois da 1ª rampa, para cair nele ao sair dela
 
 // ---------- Jogador: corpo > (skate + personagem) ----------
 const jogador = new THREE.Group(), corpo = new THREE.Group(), visual = new THREE.Group(), skate = new THREE.Group(), salto = new THREE.Group();
@@ -334,7 +335,7 @@ function atualizar(dt) {
   const dirX = on ? (k('KeyA', 'ArrowLeft') ? 1 : k('KeyD', 'ArrowRight') ? -1 : 0) : 0; // esquerda = +1
   const pulo = on && pedPulo, manobra = on ? pedManobra : null; pedPulo = false; pedManobra = null;
   gCD -= dt; tMult = Math.max(0, tMult - dt);
-  if (tMult === 0 && mult > 1) zerarMult();       // 3 s sem manobra: multiplicador volta a 1
+  if (tMult === 0 && mult > 1) zerarMult();       // 5 s sem manobra: multiplicador volta a 1
 
   if (estado === 'chao' || estado === 'agachando') {
     rumo += dirX * CFG.giroRumo * Math.min(1, Math.abs(vel) / 3 + 0.3) / (1 + Math.max(0, vel) / 25) * dt;
@@ -382,7 +383,7 @@ function atualizar(dt) {
     if (vy <= 1.5 && gCD <= 0) {
       for (const r of CORRIMAOS) {
         const rx = pos.x - r.ax, rz = pos.z - r.az, t = rx * r.dx + rz * r.dz;
-        if (t > 0 && t < r.len && Math.abs(rx * r.dz - rz * r.dx) < 0.7 && Math.abs(pos.y - r.y) < 0.4) { iniciarGrind(r, t); break; }
+        if (t > 0 && t < r.len && Math.abs(rx * r.dz - rz * r.dx) < 1.1 && Math.abs(pos.y - r.y) < 0.4) { iniciarGrind(r, t); break; }
       }
     }
     if (estado === 'ar') {
@@ -422,7 +423,7 @@ function atualizar(dt) {
   const q = nCombos > 0 ? `${nCombos} ${nCombos === 1 ? 'combo seguido' : 'combos seguidos'}` : '';
   if (q !== ultSeq) { ultSeq = q; elSeq.textContent = q; }
   elPainel.dataset.n = Math.min(3, Math.floor(nCombos / CFG.combosPorNivel)); // 0 normal, 1 fogo, 2 fogo + raios, 3 tudo mais forte
-  const f = tMult / CFG.tempoMult;                                              // termômetro dos 3 s (sem números)
+  const f = tMult / CFG.tempoMult;                                              // termômetro dos 5 s (sem números)
   elTermo.style.opacity = mult > 1 ? 1 : 0; elTermo.classList.toggle('alerta', mult > 1 && f < 0.33);
   elTermoFill.style.height = `${f * 100}%`; elTermoFill.style.background = `hsl(${Math.round(120 * f)} 90% 50%)`;
   elTempo.textContent = `${Math.ceil(tempo)}s`; elTempo.style.color = tempo <= 10 ? '#ff3d7f' : '#fff';
