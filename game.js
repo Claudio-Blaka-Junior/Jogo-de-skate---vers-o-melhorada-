@@ -8,7 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // 1) CONFIGURAÇÕES (ajuste aqui sem mexer no resto do código)
 // ---------------------------------------------------------------------
 const CFG = {
-  modelo: 'models/skatista.glb',
+  modelo: 'modelos/skatista.glb',
   sons: {
     pulo: 'sounds/pulo.mp3',
     aterrissar: 'sounds/aterrissar.mp3',
