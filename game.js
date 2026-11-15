@@ -9,7 +9,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 // ---------- Configurações (ajuste aqui) ----------
 const CFG = {
   modelo: 'models/skatista.glb',
-  sons: { pulo: 'sounds/pulo.mp3', aterrissar: 'sounds/aterrissar.mp3', musica: ['sounds/trilha.mp3', 'sounds/musica.mp3'] },
+  sons: { pulo: ['sounds/salto.mp3', 'sounds/ollie.mp3', 'sounds/pulo.mp3'], aterrissar: 'sounds/aterrissar.mp3', musica: ['sounds/trilha.mp3', 'sounds/musica.mp3'] },
   alturaPersonagem: 1.8, rotacaoModelo: 0,
   vMax: 20, velInicial: 2.5, tempoDobrar: 0.5,  // andando, a velocidade dobra a cada 0,5 s (até vMax)
   freio: 14, giroRumo: 2.4,
