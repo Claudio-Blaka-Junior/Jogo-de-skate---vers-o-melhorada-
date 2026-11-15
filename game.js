@@ -1,5 +1,5 @@
 // =====================================================================
-//  Skate 3D estilo Tony Hawk — Three.js 0.160.0 (importmap no index.html)
+//  SK8 Rush estilo Tony Hawk — Three.js 0.160.0 (importmap no index.html)
 // =====================================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
