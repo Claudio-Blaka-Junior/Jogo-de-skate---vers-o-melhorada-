@@ -278,13 +278,11 @@ function zerarMult() { mult = 1; nCombos = 0; }
 function pulsar(el) { el.classList.remove('pulso'); void el.offsetWidth; el.classList.add('pulso'); }
 function explodir() { elPainel.classList.remove('burst'); void elPainel.offsetWidth; elPainel.classList.add('burst'); msg(`${nCombos} COMBOS!`, 1400); }
 // ---------- Combo aéreo: sequência de 2 a 4 letras (J no máximo uma vez), uma letra de cada vez ----------
-const elTeclas = document.getElementById('teclas'), elTecla = document.getElementById('tecla'), elPassos = document.getElementById('passos');
+const elTeclas = document.getElementById('teclas');
 let seq = null, seqIdx = 0;
-function mostrarSeq() {
+function mostrarSeq() { // mostra TODAS as letras da sequência de uma vez; a atual fica em destaque
   if (!seq) { elTeclas.className = ''; return; }
-  elTecla.textContent = seq[seqIdx].slice(3);
-  elTecla.style.animation = 'none'; void elTecla.offsetWidth; elTecla.style.animation = ''; // reinicia o "pop" a cada letra
-  elPassos.innerHTML = seq.map((_, i) => `<i class="${i < seqIdx ? 'ok' : i === seqIdx ? 'atual' : ''}"></i>`).join('');
+  elTeclas.innerHTML = seq.map((c, i) => `<b class="cap ${i < seqIdx ? 'ok' : i === seqIdx ? 'atual' : ''}">${c.slice(3)}</b>`).join('');
   elTeclas.className = 'visivel';
 }
 function limparSequencia() { seq = null; mostrarSeq(); }
@@ -297,8 +295,8 @@ function novaSequencia() {
   }
   seq = lista; seqIdx = 0; mostrarSeq();
 }
-function fimSequencia(acertou) { // verde se completou, vermelho se errou; some logo em seguida
-  seq = null; elTecla.textContent = acertou ? '✓' : '✗'; elTeclas.className = `visivel ${acertou ? 'completo' : 'erro'}`;
+function fimSequencia(acertou) { // todas verdes se completou, todas vermelhas se errou; some logo em seguida
+  seq = null; elTeclas.className = `visivel ${acertou ? 'completo' : 'erro'}`;
   setTimeout(() => { if (!seq) elTeclas.className = ''; }, 450);
 }
 function entrarNoAr(grav) {
