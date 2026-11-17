@@ -277,7 +277,56 @@ function atividade() { tMult = CFG.tempoMult; }                    // fez manobr
 function zerarMult() { mult = 1; nCombos = 0; }
 function pulsar(el) { el.classList.remove('pulso'); void el.offsetWidth; el.classList.add('pulso'); }
 function explodir() { elPainel.classList.remove('burst'); void elPainel.offsetWidth; elPainel.classList.add('burst'); msg(`${nCombos} COMBOS!`, 1400); }
-function entrarNoAr(grav) { manobrasNoAr = 0; voltas = 0; giroAcum = 0; gravAtual = grav; }
+// ---------- Combo aéreo: sequência de 2 a 4 letras (J no máximo uma vez), uma letra de cada vez ----------
+const elTeclas = document.getElementById('teclas'), elTecla = document.getElementById('tecla'), elPassos = document.getElementById('passos');
+let seq = null, seqIdx = 0;
+function mostrarSeq() {
+  if (!seq) { elTeclas.className = ''; return; }
+  elTecla.textContent = seq[seqIdx].slice(3);
+  elTecla.style.animation = 'none'; void elTecla.offsetWidth; elTecla.style.animation = ''; // reinicia o "pop" a cada letra
+  elPassos.innerHTML = seq.map((_, i) => `<i class="${i < seqIdx ? 'ok' : i === seqIdx ? 'atual' : ''}"></i>`).join('');
+  elTeclas.className = 'visivel';
+}
+function limparSequencia() { seq = null; mostrarSeq(); }
+function novaSequencia() {
+  const n = 2 + Math.floor(Math.random() * 3), lista = []; let usouJ = false;
+  while (lista.length < n) {
+    const c = ['KeyJ', 'KeyK', 'KeyL'][Math.floor(Math.random() * 3)];
+    if (c === 'KeyJ') { if (usouJ) continue; usouJ = true; }
+    lista.push(c);
+  }
+  seq = lista; seqIdx = 0; mostrarSeq();
+}
+function fimSequencia(acertou) { // verde se completou, vermelho se errou; some logo em seguida
+  seq = null; elTecla.textContent = acertou ? '✓' : '✗'; elTeclas.className = `visivel ${acertou ? 'completo' : 'erro'}`;
+  setTimeout(() => { if (!seq) elTeclas.className = ''; }, 450);
+}
+function entrarNoAr(grav) {
+  manobrasNoAr = 0; voltas = 0; giroAcum = 0; gravAtual = grav;
+  const altura = Math.max(0, pos.y - alturaEm(pos.x, pos.z)); // estima o tempo no ar: só pede letras se der tempo
+  if ((vy + Math.sqrt(vy * vy + 2 * grav * altura)) / grav >= 0.8) novaSequencia(); else limparSequencia();
+}
+
+// ---------- Marcos de pontuação: frases chamativas, cada uma com um estilo ----------
+const elMarco = document.getElementById('marco');
+const MARCOS = [
+  { pts: 300000, texto: 'INSANO', cls: 'm1' },
+  { pts: 500000, texto: 'COLOSSAL', cls: 'm2' },
+  { pts: 1000000, texto: 'MEGA PONTUAÇÃO', cls: 'm3' },
+  { pts: 10000000, texto: 'PLAYER LENDÁRIO !!!!!!', cls: 'm4' },
+  { pts: 30000000, texto: 'TITÂNICO', cls: 'm5' },
+];
+let marcoIdx = 0, filaMarcos = [], marcoOcupado = false;
+function proximoMarco() {
+  const m = filaMarcos.shift();
+  if (!m) { marcoOcupado = false; return; }
+  marcoOcupado = true; elMarco.className = ''; elMarco.textContent = m.texto; void elMarco.offsetWidth; elMarco.className = `mostra ${m.cls}`;
+  setTimeout(proximoMarco, 1500);
+}
+function checarMarcos() { // chamado quando a pontuação sobe; vários marcos de uma vez entram em fila
+  while (marcoIdx < MARCOS.length && total >= MARCOS[marcoIdx].pts) filaMarcos.push(MARCOS[marcoIdx++]);
+  if (!marcoOcupado) proximoMarco();
+}
 // Raio forte na tela (clarão, três raios sorteados e tremor da imagem)
 const elRaio = document.getElementById('raioTela'), elRaioSvg = elRaio.querySelector('svg');
 function raioForte() {
@@ -293,20 +342,20 @@ function raioForte() {
 function terminarManobra(prox = false) { // soma os pontos e devolve skate e corpo à posição normal
   if (!trick) return;
   atividade(); pontosCombo += trick.def.pts; manobrasNoAr++;
-  if (manobrasNoAr >= 2) { // 2ª manobra em diante no mesmo salto: combo aéreo
+  if (trick.combo) { // acertou a ordem das letras (a partir do 2º acerto): combo aéreo
     pontosCombo *= CFG.multAereo; raioForte(); msg(`${trick.def.nome}! COMBO NO AR x${CFG.multAereo}`, 1300);
   } else msg(`${trick.def.nome}! +${trick.def.pts}`);
   skate.rotation.set(0, 0, 0); salto.rotation.x = 0; trick = null;
-  if (prox && fila.length) trick = { def: MANOBRAS[fila.shift()], t: 0 }; else fila = []; // manobras na fila começam em seguida
+  if (prox && fila.length) { const q = fila.shift(); trick = { def: MANOBRAS[q.code], t: 0, combo: q.combo }; } else fila = []; // manobras na fila começam em seguida
 }
 function cair(motivo) { // queda: perde combo e multiplicador
-  trick = null; fila = []; salto.rotation.x = 0; somAterrissar.tocar();
+  trick = null; fila = []; limparSequencia(); salto.rotation.x = 0; somAterrissar.tocar();
   pontosCombo = 0; zerarMult(); comboT = 0; vel = 0; vh.set(0, 0); vy = 0; rail = null;
   visual.rotation.x = -1.3; visual.position.y = 0.4; skate.rotation.set(0.4, 0.8, 1.2);
   tEst = 1.1; setEstado('queda');
 }
 function aterrissar(gy) {
-  pos.y = gy; vy = 0; vyChao = 0;
+  pos.y = gy; vy = 0; vyChao = 0; limparSequencia();
   if (trick && trick.def.eixo === 'x' && trick.t < 0.85) return cair('Mortal incompleto!');
   terminarManobra();
   const sp = vh.length(), yaw = jogador.rotation.y;
@@ -318,7 +367,7 @@ function aterrissar(gy) {
   estado = 'chao'; voltas = 0;
 }
 function iniciarGrind(r, t) {
-  terminarManobra();
+  terminarManobra(); limparSequencia();
   const yaw = jogador.rotation.y, sp = vh.length();
   rail = r; railT = t; railSinal = (vh.x * r.dx + vh.y * r.dz) >= 0 ? 1 : -1; railVel = Math.max(sp, 6);
   rumo = Math.atan2(railSinal * r.dx, railSinal * r.dz);
@@ -334,11 +383,11 @@ function sairGrind(pulo) {
   rail = null; gCD = 0.4; entrarNoAr(CFG.gravidade); setEstado('ar');
 }
 function encerrar() { // fim dos 60 s: soma o combo pendente e mostra a pontuação final
-  fim = true; total += pontosCombo * mult; pontosCombo = 0; trick = null; fila = [];
+  fim = true; total += pontosCombo * mult; pontosCombo = 0; trick = null; fila = []; limparSequencia();
   document.getElementById('final').textContent = Math.floor(total).toLocaleString('pt-BR'); elFim.style.display = 'flex';
 }
 function reiniciar() {
-  total = 0; pontosCombo = 0; mult = 1; nCombos = 0; tMult = 0; comboT = 0; tempo = CFG.tempoJogo; fim = false; trick = null; fila = []; rail = null;
+  total = 0; pontosCombo = 0; mult = 1; nCombos = 0; tMult = 0; comboT = 0; tempo = CFG.tempoJogo; fim = false; trick = null; fila = []; rail = null; limparSequencia(); marcoIdx = 0; filaMarcos = []; marcoOcupado = false; elMarco.className = '';
   vel = 0; vy = 0; vyChao = 0; vh.set(0, 0); rumo = Math.PI; tAterr = 0;
   jogador.rotation.y = Math.PI; corpo.rotation.x = 0; salto.rotation.x = 0; visual.rotation.x = 0; visual.position.y = 0.16; skate.rotation.set(0, 0, 0);
   pos.set(0, terreno(0, 80), 80); // começa no alto da descida
@@ -378,7 +427,7 @@ function atualizar(dt) {
     jogador.rotation.y = girarAte(jogador.rotation.y, rumo, 12 * dt);
     if (estado === 'chao' && pontosCombo > 0 && (comboT -= dt) <= 0) {  // fecha o combo: soma e dobra o multiplicador
       const ganho = pontosCombo * mult; total += ganho; msg(`COMBO! +${ganho.toLocaleString('pt-BR')} (x${mult})`, 1800);
-      mult = Math.min(mult * 2, 1024); pontosCombo = 0; nCombos++; if (nCombos % CFG.combosPorNivel === 0) explodir();
+      mult = Math.min(mult * 2, 1024); pontosCombo = 0; nCombos++; if (nCombos % CFG.combosPorNivel === 0) explodir(); checarMarcos();
     }
   } else if (estado === 'ar') {
     vy -= gravAtual * dt;
@@ -390,7 +439,14 @@ function atualizar(dt) {
     if (CORRIMAOS.some((r) => pos.y < r.y - 0.2 && distCorrimao(r, nx, nz) < 0.4)) { nx = pos.x; nz = pos.z; vh.set(0, 0); } // não atravessa o corrimão
     pos.x = nx; pos.z = nz; pos.y += vy * dt;
     corpo.rotation.x += (0 - corpo.rotation.x) * Math.min(1, 8 * dt);
-    if (manobra) { if (!trick) { trick = { def: MANOBRAS[manobra], t: 0 }; atividade(); } else if (fila.length < 2) fila.push(manobra); } // várias manobras no ar (fila de 1)
+    if (manobra && (!trick || fila.length < 2)) { // várias manobras no ar (até 2 na fila)
+      let combo = false;
+      if (seq) { // letra certa: avança; letra errada: a sequência acaba e o combo aéreo não vale
+        if (manobra === seq[seqIdx]) { seqIdx++; combo = seqIdx >= 2; if (seqIdx >= seq.length) fimSequencia(true); else mostrarSeq(); }
+        else fimSequencia(false);
+      }
+      if (!trick) { trick = { def: MANOBRAS[manobra], t: 0, combo }; atividade(); } else fila.push({ code: manobra, combo });
+    }
     if (trick) {
       const d = trick.def; trick.t += dt / d.dur; const e = 1 - Math.pow(1 - Math.min(trick.t, 1), 2);
       if (d.eixo === 'x') salto.rotation.x = -2 * Math.PI * e;                       // mortal para trás
