@@ -98,17 +98,14 @@
     canvas.tremor { animation: tremorTela .4s linear; }
     @keyframes tremorTela { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-7px, 4px); } 40% { transform: translate(6px, -5px); } 60% { transform: translate(-4px, -3px); } 80% { transform: translate(3px, 4px); } }
 
-    /* Letras do combo aéreo: lado direito, no meio da altura (fora da área central do jogo) */
-    #teclas { position: fixed; z-index: 6; right: 5vw; top: 34%; display: none; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+    /* Letras do combo aéreo: todas de uma vez, no lado direito (fora da área central do jogo) */
+    #teclas { position: fixed; z-index: 6; right: 3vw; top: 32%; display: none; gap: clamp(6px, 1vw, 12px); pointer-events: none; }
     #teclas.visivel { display: flex; }
-    #tecla { width: 1.5em; height: 1.5em; display: flex; align-items: center; justify-content: center; font: 900 clamp(3rem, 8vw, 5.5rem)/1 Impact, "Arial Black", sans-serif; color: #1b1033; background: rgba(255, 255, 255, .93); border-radius: .22em; box-shadow: 0 .08em 0 rgba(0, 0, 0, .45), 0 0 24px rgba(255, 209, 102, .85); animation: aparece .18s ease-out; }
-    #passos { display: flex; gap: 8px; }
-    #passos i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; background: rgba(255, 255, 255, .3); }
-    #passos i.atual { background: var(--ouro); }
-    #passos i.ok { background: #4be08a; border-color: #4be08a; }
-    #teclas.erro #tecla { background: var(--rosa); color: #fff; box-shadow: 0 0 28px rgba(255, 61, 127, .9); }
-    #teclas.completo #tecla { background: #4be08a; color: #0b2a1a; box-shadow: 0 0 28px rgba(75, 224, 138, .9); }
-    @keyframes aparece { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .cap { width: 1.35em; height: 1.35em; display: flex; align-items: center; justify-content: center; font: 900 clamp(2.2rem, 5.2vw, 3.8rem)/1 Impact, "Arial Black", sans-serif; color: #1b1033; background: rgba(255, 255, 255, .55); border: 3px solid rgba(255, 255, 255, .9); border-radius: .2em; box-shadow: 0 .06em 0 rgba(0, 0, 0, .4); opacity: .75; }
+    .cap.atual { background: #fff; border-color: var(--ouro); opacity: 1; transform: scale(1.18); box-shadow: 0 .06em 0 rgba(0, 0, 0, .45), 0 0 22px rgba(255, 209, 102, .95); animation: aparece .18s ease-out; }
+    .cap.ok, #teclas.completo .cap { background: #4be08a; border-color: #4be08a; color: #0b2a1a; opacity: 1; transform: none; }
+    #teclas.erro .cap { background: var(--rosa); border-color: var(--rosa); color: #fff; opacity: 1; transform: none; }
+    @keyframes aparece { from { transform: scale(.5); opacity: 0; } to { opacity: 1; } }
 
     /* Marcos de pontuação: cada um com letras diferentes */
     #marco { position: fixed; z-index: 7; left: 50%; top: 38%; transform: translate(-50%, -50%); pointer-events: none; opacity: 0; white-space: nowrap; text-align: center; }
@@ -178,7 +175,7 @@
     <div id="seq"></div>
   </div>
   <div id="raioTela"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
-  <div id="teclas"><div id="tecla"></div><div id="passos"></div></div>
+  <div id="teclas"></div>
   <div id="marco"></div>
   <div id="termo"><div id="termoFill"></div></div>
   <div id="tempo">60s</div>
